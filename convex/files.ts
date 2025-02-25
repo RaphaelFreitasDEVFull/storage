@@ -1,9 +1,24 @@
 import { ConvexError, v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { mutation, MutationCtx, query, QueryCtx } from './_generated/server'
+import { getUser } from './users'
+
+async function hasAcessToOrg(
+  tokenIdentifier: string,
+  orgId: string,
+  ctx: QueryCtx | MutationCtx,
+) {
+  const user = await getUser(ctx, tokenIdentifier)
+
+  const hasAcess =
+    user.orgIds.includes(orgId) || user.tokenIdentifier.includes(orgId)
+
+  return hasAcess
+}
 
 export const createFile = mutation({
   args: {
     name: v.string(),
+    orgId: v.string(),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity()
@@ -12,20 +27,45 @@ export const createFile = mutation({
       throw new ConvexError('User is not authenticated')
     }
 
+    const hasAcess = await hasAcessToOrg(
+      identity.tokenIdentifier,
+      args.orgId,
+      ctx,
+    )
+
+    if (!hasAcess) {
+      throw new ConvexError('User does not have access to this organization')
+    }
     await ctx.db.insert('files', {
       name: args.name,
+      orgID: args.orgId,
     })
   },
 })
 
 export const getFiles = query({
-  args: {},
-  async handler(ctx) {
+  args: {
+    orgId: v.string(),
+  },
+  async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity()
 
     if (!identity) {
       return []
     }
-    return await ctx.db.query('files').collect()
+
+    const hasAcess = await hasAcessToOrg(
+      identity.tokenIdentifier,
+      args.orgId,
+      ctx,
+    )
+
+    if (!hasAcess) {
+      return []
+    }
+    return await ctx.db
+      .query('files')
+      .withIndex('by_orgID', (q) => q.eq('orgID', args.orgId))
+      .collect()
   },
 })

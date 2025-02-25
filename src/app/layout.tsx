@@ -7,6 +7,7 @@ import { ClerkProvider, useAuth } from '@clerk/nextjs'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ConvexReactClient } from 'convex/react'
 import { ptBR } from '@clerk/localizations'
+import { Header } from './_components/Header'
 
 const convex = new ConvexReactClient(
   process.env.NEXT_PUBLIC_CONVEX_URL as string,
@@ -28,7 +29,10 @@ export default function RootLayout({
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <html lang="pt-BR">
-          <body className={`${inter.className}  antialiased`}>{children}</body>
+          <body className={`${inter.className}  antialiased`}>
+            <Header />
+            {children}
+          </body>
         </html>
       </ConvexProviderWithClerk>
     </ClerkProvider>

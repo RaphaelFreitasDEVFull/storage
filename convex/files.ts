@@ -80,3 +80,31 @@ export const getFiles = query({
       .collect()
   },
 })
+
+export const deleteFile = mutation({
+  args: { fileId: v.id('files') },
+  async handler(ctx, args) {
+    const identity = await ctx.auth.getUserIdentity()
+
+    if (!identity) {
+      return []
+    }
+
+    const file = await ctx.db.get(args.fileId)
+
+    if (!file) {
+      throw new ConvexError('This file not exists')
+    }
+
+    const hasAcess = await hasAcessToOrg(
+      identity.tokenIdentifier,
+      file.orgID,
+      ctx,
+    )
+    if (!hasAcess) {
+      throw new ConvexError('User does not have access to this file')
+    }
+
+    await ctx.db.delete(args.fileId)
+  },
+})
